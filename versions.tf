@@ -10,19 +10,19 @@ terraform {
     }
   }
 
-  backend "azurerm" {
-    # Backend configuration should be provided via:
-    # 1. Backend config file (recommended): terraform init -backend-config=backend.conf
-    # 2. CLI parameters during init
-    # 3. Environment variables (TF_VAR_* pattern)
-    #
-    # Example backend.conf file:
-    # resource_group_name   = "rg-terraform-state"
-    # storage_account_name  = "storageaccountname"
-    # container_name        = "tfstate"
-    # key                   = "alz/terraform.tfstate"
-    # use_azuread_auth      = true
-    # subscription_id       = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-    # tenant_id             = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-  }
+  # backend "azurerm" {
+  #   # Backend configuration should be provided via:
+  #   # 1. Backend config file (recommended): terraform init -backend-config=backend.conf
+  #   # 2. CLI parameters during init
+  #   # 3. Environment variables (TF_VAR_* pattern)
+  #   #
+  #   # Example backend.conf file:
+  #   # resource_group_name   = "rg-terraform-state"
+  #   # storage_account_name  = "storageaccountname"
+  #   # container_name        = "tfstate"
+  #   # key                   = "alz/terraform.tfstate"
+  #   # use_azuread_auth      = true
+  #   # subscription_id       = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  #   # tenant_id             = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  # }
 }
