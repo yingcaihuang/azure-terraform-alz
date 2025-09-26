@@ -1,164 +1,274 @@
-# Root-level variables.tf
+# Root-level variables.tf - Azure Landing Zone Terraform Implementation
 
-# Management Group Variables
+# ============================================================================
+# CORE ALZ CONFIGURATION
+# ============================================================================
+
 variable "root_management_group_name" {
   description = "Display name of the root management group under the tenant root group"
   type        = string
+  validation {
+    condition     = length(var.root_management_group_name) > 0
+    error_message = "Root management group name cannot be empty."
+  }
 }
 
-# Prefix for naming resources, used to maintain naming consistency across resources
 variable "resource_prefix" {
-  description = "Prefix for resource names (e.g., contoso)"
+  description = "Prefix for resource names (e.g., contoso, myorg)"
   type        = string
+  validation {
+    condition     = can(regex("^[a-z0-9]{2,10}$", var.resource_prefix))
+    error_message = "Resource prefix must be 2-10 characters, lowercase letters and numbers only."
+  }
 }
 
-# Location for resource deployments, specifying the Azure region (e.g., West US)
 variable "location" {
-  description = "Location for resources (e.g., West US)"
+  description = "Primary Azure region for resources deployment"
   type        = string
+  default     = "westus3"
 }
 
-# Optional subscription IDs for management groups, nullable if no subscription to assign
+# ============================================================================
+# SUBSCRIPTION ASSIGNMENTS
+# ============================================================================
+
 variable "connectivity_subscription_id" {
   description = "Subscription ID to assign to the Connectivity management group (optional)"
   type        = string
   default     = null
+  validation {
+    condition     = var.connectivity_subscription_id == null || can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.connectivity_subscription_id))
+    error_message = "Connectivity subscription ID must be a valid GUID or null."
+  }
 }
 
 variable "identity_subscription_id" {
   description = "Subscription ID to assign to the Identity management group (optional)"
   type        = string
   default     = null
+  validation {
+    condition     = var.identity_subscription_id == null || can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.identity_subscription_id))
+    error_message = "Identity subscription ID must be a valid GUID or null."
+  }
 }
 
 variable "management_subscription_id" {
   description = "Subscription ID to assign to the Management management group (optional)"
   type        = string
   default     = null
+  validation {
+    condition     = var.management_subscription_id == null || can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.management_subscription_id))
+    error_message = "Management subscription ID must be a valid GUID or null."
+  }
 }
 
-# Names for primary management groups under the root group
+# ============================================================================
+# NETWORKING ARCHITECTURE CHOICE
+# ============================================================================
+
+variable "network_architecture" {
+  description = "Choose network architecture: 'hub_spoke' for traditional hub and spoke, 'vwan' for Virtual WAN, or 'none' for no connectivity resources"
+  type        = string
+  default     = "hub_spoke"
+  validation {
+    condition     = contains(["hub_spoke", "vwan", "none"], var.network_architecture)
+    error_message = "Network architecture must be one of: hub_spoke, vwan, or none."
+  }
+}
+
+variable "deploy_connectivity_resources" {
+  description = "Deploy connectivity resources (VNet, Virtual WAN, etc.)"
+  type        = bool
+  default     = true
+}
+
+# ============================================================================
+# HUB & SPOKE CONFIGURATION
+# ============================================================================
+
+variable "hub_vnet_address_space" {
+  description = "Address space for the hub virtual network (used when network_architecture = 'hub_spoke')"
+  type        = list(string)
+  default     = ["10.0.0.0/22"]
+}
+
+variable "hub_subnets" {
+  description = "Map of hub subnet names to their CIDR blocks"
+  type = map(object({
+    address_prefixes = list(string)
+    delegations      = optional(list(string), [])
+  }))
+  default = {
+    "snet-shared-services" = {
+      address_prefixes = ["10.0.0.0/24"]
+    }
+    "snet-management" = {
+      address_prefixes = ["10.0.1.0/24"]
+    }
+    "AzureBastionSubnet" = {
+      address_prefixes = ["10.0.2.0/26"]
+    }
+    "AzureFirewallSubnet" = {
+      address_prefixes = ["10.0.3.0/26"]
+    }
+  }
+}
+
+# ============================================================================
+# VIRTUAL WAN CONFIGURATION
+# ============================================================================
+
+variable "virtual_wan_name" {
+  description = "The name of the Virtual WAN (used when network_architecture = 'vwan')"
+  type        = string
+  default     = "alz-vwan"
+}
+
+variable "virtual_hub_address_prefix" {
+  description = "Address prefix for the virtual hub (used when network_architecture = 'vwan')"
+  type        = string
+  default     = "10.0.0.0/24"
+}
+
+variable "deploy_express_route_gateway" {
+  description = "Deploy ExpressRoute gateway in Virtual WAN hub"
+  type        = bool
+  default     = false
+}
+
+variable "deploy_vpn_gateway" {
+  description = "Deploy VPN gateway in Virtual WAN hub"
+  type        = bool
+  default     = false
+}
+
+# ============================================================================
+# MANAGEMENT GROUP CUSTOMIZATION
+# ============================================================================
+
 variable "decommissioned_group_name" {
-  description = "Name for the Decommissioned management group"
+  description = "Display name for the Decommissioned management group"
   type        = string
   default     = "Decommissioned"
 }
 
 variable "landing_zones_group_name" {
-  description = "Name for the Landing Zones management group"
+  description = "Display name for the Landing Zones management group"
   type        = string
   default     = "Landing Zones"
 }
 
 variable "platform_group_name" {
-  description = "Name for the Platform management group"
+  description = "Display name for the Platform management group"
   type        = string
   default     = "Platform"
 }
 
 variable "sandboxes_group_name" {
-  description = "Name for the Sandboxes management group"
+  description = "Display name for the Sandboxes management group"
   type        = string
-  default     = "Sandbox"
+  default     = "Sandboxes"
 }
 
-# Names for sub-groups under Landing Zones
 variable "prod_group_name" {
-  description = "Name for the Prod management group under Landing Zones"
+  description = "Display name for the Production management group under Landing Zones"
   type        = string
-  default     = "Prod"
+  default     = "Production"
 }
 
 variable "non_prod_group_name" {
-  description = "Name for the Non-Prod management group under Landing Zones"
+  description = "Display name for the Non-Production management group under Landing Zones"
   type        = string
-  default     = "Non-Prod"
+  default     = "Non-Production"
 }
 
-# Names for sub-groups under Platform
 variable "connectivity_group_name" {
-  description = "Name for the Connectivity management group under Platform"
+  description = "Display name for the Connectivity management group under Platform"
   type        = string
   default     = "Connectivity"
 }
 
 variable "identity_group_name" {
-  description = "Name for the Identity management group under Platform"
+  description = "Display name for the Identity management group under Platform"
   type        = string
   default     = "Identity"
 }
 
 variable "management_group_name" {
-  description = "Name for the Management management group under Platform"
+  description = "Display name for the Management management group under Platform"
   type        = string
   default     = "Management"
 }
 
-# Additional Variables for Optional Resource Deployments
+# ============================================================================
+# POLICY CONFIGURATION
+# ============================================================================
 
-# Organization name for consistent naming
-variable "org_name" {
-  description = "The name of the organization, used in naming resources like Log Analytics Workspaces, Virtual WAN, etc."
-  type        = string
-}
-
-# Option to deploy Log Analytics Workspaces
-variable "deploy_log_analytics_workspace" {
-  description = "Set to true to deploy Log Analytics Workspaces (Prod and Non-Prod)"
+variable "deploy_core_policies" {
+  description = "Deploy core security and compliance policies"
   type        = bool
   default     = true
 }
 
-# Option to deploy an Azure Automation Account
-variable "deploy_automation_account" {
-  description = "Set to true to deploy an Azure Automation Account"
-  type        = bool
-  default     = false
-}
-
-# Option to deploy an additional Azure Resource Group
-variable "deploy_resource_group" {
-  description = "Set to true to deploy an Azure Resource Group"
-  type        = bool
-  default     = false
-}
-
-# Option to deploy Data Collection Rules
-variable "deploy_data_collection_rules" {
-  description = "Set to true to deploy Data Collection Rules"
-  type        = bool
-  default     = false
-}
-
-# Option to deploy a User Assigned Managed Identity
-variable "deploy_managed_identity" {
-  description = "Set to true to deploy a User Assigned Managed Identity"
-  type        = bool
-  default     = false
-}
-
-# Tags for resources
-variable "tags" {
-  description = "Tags to apply to resources"
-  type        = map(string)
-  default     = {
-    environment = "production"
-    deployment  = "test"
+variable "policy_enforcement_mode" {
+  description = "Policy enforcement mode: 'DoNotEnforce' for audit mode, 'Default' for enforce mode"
+  type        = string
+  default     = "DoNotEnforce"
+  validation {
+    condition     = contains(["DoNotEnforce", "Default"], var.policy_enforcement_mode)
+    error_message = "Policy enforcement mode must be either 'DoNotEnforce' or 'Default'."
   }
 }
 
-# Virtual WAN and Hub Variables
+# ============================================================================
+# OPTIONAL MANAGEMENT RESOURCES
+# ============================================================================
 
-# Name for the virtual WAN
-variable "virtual_wan_name" {
-  description = "The name of the Virtual WAN"
-  type        = string
-  default     = "default-vwan-name"
+variable "deploy_log_analytics_workspace" {
+  description = "Deploy Log Analytics Workspaces for centralized logging"
+  type        = bool
+  default     = true
 }
 
-# Virtual hub address prefix
-variable "virtual_hub_address_prefix" {
-  description = "CIDR range for the virtual hub's address prefix"
+variable "deploy_automation_account" {
+  description = "Deploy Azure Automation Account for management tasks"
+  type        = bool
+  default     = true
+}
+
+variable "deploy_data_collection_rules" {
+  description = "Deploy Data Collection Rules for Azure Monitor"
+  type        = bool
+  default     = false
+}
+
+variable "deploy_managed_identity" {
+  description = "Deploy User Assigned Managed Identity for service authentication"
+  type        = bool
+  default     = false
+}
+
+# ============================================================================
+# RESOURCE TAGGING
+# ============================================================================
+
+variable "tags" {
+  description = "Default tags to apply to all resources"
+  type        = map(string)
+  default = {
+    Environment = "ALZ"
+    ManagedBy   = "Terraform"
+    Framework   = "Azure-Landing-Zones"
+    CreatedBy   = "ALZ-Terraform-Accelerator"
+  }
+}
+
+variable "org_name" {
+  description = "Organization name for resource naming conventions"
   type        = string
-  default     = "10.0.0.0/24"
+  default     = "alz"
+  validation {
+    condition     = can(regex("^[a-z0-9]{2,10}$", var.org_name))
+    error_message = "Organization name must be 2-10 characters, lowercase letters and numbers only."
+  }
 }

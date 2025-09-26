@@ -1,0 +1,27 @@
+# backend.conf.example - Backend Configuration Template
+# Copy this file to backend.conf and update with your actual values
+# Usage: terraform init -backend-config=backend.conf
+
+# Azure Storage Account Details
+resource_group_name  = "rg-terraform-state-prod"
+storage_account_name = "stterraformstateprod001"
+container_name       = "tfstate"
+key                  = "alz/terraform.tfstate"
+
+# Authentication Method (choose one)
+# Option 1: Use Azure AD authentication (recommended)
+use_azuread_auth = true
+
+# Option 2: Use storage account access key
+# access_key = "your-storage-account-access-key"
+
+# Option 3: Use SAS token
+# sas_token = "your-sas-token"
+
+# Azure Subscription and Tenant (required for azuread_auth)
+subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+tenant_id       = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Optional: Specify client credentials (if not using default Azure CLI auth)
+# client_id       = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+# client_secret   = "your-service-principal-secret"

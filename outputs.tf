@@ -1,13 +1,15 @@
-# outputs.tf
+# outputs.tf - Azure Landing Zone Outputs
 
-# Output the ID of the root management group
+# ============================================================================
+# MANAGEMENT GROUP OUTPUTS
+# ============================================================================
+
 output "root_management_group_id" {
   description = "ID of the root management group"
   value       = module.management_groups.root_management_group_id
 }
 
-# Output the IDs of Level 1 management groups
-
+# Level 1 Management Groups
 output "decommissioned_group_id" {
   description = "ID of the Decommissioned management group"
   value       = module.management_groups.decommissioned_group_id
@@ -28,20 +30,18 @@ output "sandboxes_group_id" {
   value       = module.management_groups.sandboxes_group_id
 }
 
-# Output the IDs of Level 2 management groups under Landing Zones
-
+# Level 2 Management Groups - Landing Zones
 output "prod_group_id" {
-  description = "ID of the Prod management group under Landing Zones"
+  description = "ID of the Production management group under Landing Zones"
   value       = module.management_groups.prod_group_id
 }
 
 output "non_prod_group_id" {
-  description = "ID of the Non-Prod management group under Landing Zones"
+  description = "ID of the Non-Production management group under Landing Zones"
   value       = module.management_groups.non_prod_group_id
 }
 
-# Output the IDs of Level 2 management groups under Platform
-
+# Level 2 Management Groups - Platform
 output "connectivity_group_id" {
   description = "ID of the Connectivity management group under Platform"
   value       = module.management_groups.connectivity_group_id
@@ -57,24 +57,95 @@ output "management_group_id" {
   value       = module.management_groups.management_group_id
 }
 
-# Optional outputs for subscriptions (only output if assigned)
+# ============================================================================
+# CONNECTIVITY OUTPUTS (OPTIONAL)
+# ============================================================================
 
-output "connectivity_subscription_id" {
-  description = "Subscription ID assigned to the Connectivity management group (if provided)"
-  value       = var.connectivity_subscription_id
+output "connectivity_resource_group_name" {
+  description = "Name of the connectivity resource group"
+  value       = local.deploy_network ? module.connectivity[0].connectivity_resource_group_name : null
 }
 
-output "identity_subscription_id" {
-  description = "Subscription ID assigned to the Identity management group (if provided)"
-  value       = var.identity_subscription_id
+output "hub_vnet_id" {
+  description = "ID of the hub virtual network (Hub & Spoke architecture)"
+  value       = local.deploy_hub_spoke ? module.connectivity[0].hub_vnet_id : null
 }
 
-output "management_subscription_id" {
-  description = "Subscription ID assigned to the Management management group (if provided)"
-  value       = var.management_subscription_id
+output "hub_vnet_name" {
+  description = "Name of the hub virtual network (Hub & Spoke architecture)"
+  value       = local.deploy_hub_spoke ? module.connectivity[0].hub_vnet_name : null
 }
+
+output "virtual_wan_id" {
+  description = "ID of the Virtual WAN (Virtual WAN architecture)"
+  value       = local.deploy_vwan ? module.connectivity[0].virtual_wan_id : null
+}
+
+output "virtual_hub_id" {
+  description = "ID of the Virtual Hub (Virtual WAN architecture)"
+  value       = local.deploy_vwan ? module.connectivity[0].virtual_hub_id : null
+}
+
+output "hub_subnet_ids" {
+  description = "Map of hub subnet names to their IDs"
+  value       = local.deploy_hub_spoke ? module.connectivity[0].hub_subnet_ids : {}
+}
+
+# ============================================================================
+# POLICY OUTPUTS (OPTIONAL)
+# ============================================================================
+
+output "core_security_policies_deployed" {
+  description = "Summary of deployed core security policies"
+  value       = var.deploy_core_policies ? module.core_policies[0].deployed_policies_summary : null
+}
+
+output "platform_policy_assignments" {
+  description = "Map of platform-level policy assignment names to their IDs"
+  value       = var.deploy_core_policies ? module.core_policies[0].platform_policy_assignment_ids : {}
+}
+
+output "landing_zones_policy_assignments" {
+  description = "Map of landing zones policy assignment names to their IDs"
+  value       = var.deploy_core_policies ? module.core_policies[0].landing_zones_policy_assignment_ids : {}
+}
+
+# ============================================================================
+# MANAGEMENT RESOURCE OUTPUTS (OPTIONAL)
+# ============================================================================
 
 output "management_resource_group_name" {
+  description = "Name of the resource group created for optional resources"
   value       = module.optional_resources.management_resource_group_name
-  description = "Name of the resource group created in optional_resources"
+}
+
+# ============================================================================
+# SUMMARY OUTPUTS
+# ============================================================================
+
+output "deployment_summary" {
+  description = "Summary of deployed Azure Landing Zone components"
+  value = {
+    management_groups_deployed      = true
+    network_architecture            = var.network_architecture
+    connectivity_resources_deployed = local.deploy_network
+    core_policies_deployed          = var.deploy_core_policies
+    policy_enforcement_mode         = var.policy_enforcement_mode
+    log_analytics_deployed          = var.deploy_log_analytics_workspace
+    automation_account_deployed     = var.deploy_automation_account
+    location                        = var.location
+    resource_prefix                 = var.resource_prefix
+  }
+}
+
+output "next_steps" {
+  description = "Recommended next steps after deployment"
+  value = [
+    "1. Review policy compliance in Azure Policy blade",
+    "2. Assign workload subscriptions to appropriate management groups",
+    "3. Deploy spoke VNets and connect to hub infrastructure",
+    "4. Configure additional monitoring and alerting as needed",
+    local.deploy_network ? "5. Test connectivity between hub and future spoke networks" : "5. Consider deploying networking infrastructure",
+    var.policy_enforcement_mode == "DoNotEnforce" ? "6. Consider enabling policy enforcement mode when ready" : "6. Monitor policy compliance and exemptions"
+  ]
 }

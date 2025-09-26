@@ -52,16 +52,16 @@ resource "azurerm_monitor_data_collection_rule" "data_collection_rule" {
 
   data_sources {
     windows_event_log {
-      name             = "windows_event_log_data"
-      streams          = ["Microsoft-Windows-Security-Auditing"]
-      x_path_queries   = ["Security"]  # Corrected attribute
+      name           = "windows_event_log_data"
+      streams        = ["Microsoft-Windows-Security-Auditing"]
+      x_path_queries = ["Security"] # Corrected attribute
     }
 
     performance_counter {
-      name                           = "performance_counter_data"
-      streams                        = ["Microsoft-Windows-Disk-IO"]
-      counter_specifiers             = ["\\PhysicalDisk(_Total)\\Disk Write Bytes/sec"]
-      sampling_frequency_in_seconds  = 60
+      name                          = "performance_counter_data"
+      streams                       = ["Microsoft-Windows-Disk-IO"]
+      counter_specifiers            = ["\\PhysicalDisk(_Total)\\Disk Write Bytes/sec"]
+      sampling_frequency_in_seconds = 60
     }
   }
 

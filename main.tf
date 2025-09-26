@@ -1,87 +1,139 @@
-# main.tf in root
-
-terraform {
-  backend "local" {}
-}
+# main.tf - Azure Landing Zone Implementation
 
 provider "azurerm" {
-  features {}
+  features {
+    resource_group {
+      prevent_deletion_if_contains_resources = false
+    }
+    key_vault {
+      purge_soft_delete_on_destroy    = true
+      recover_soft_deleted_key_vaults = true
+    }
+  }
 }
 
-# Call the management groups module
-module "management_groups" {
-  source                       = "./modules/management_groups"
-  resource_prefix              = var.resource_prefix
-  root_management_group_name   = var.root_management_group_name
-  decommissioned_group_name    = var.decommissioned_group_name
-  landing_zones_group_name     = var.landing_zones_group_name
-  platform_group_name          = var.platform_group_name
-  sandboxes_group_name         = var.sandboxes_group_name
-  prod_group_name              = var.prod_group_name
-  non_prod_group_name          = var.non_prod_group_name
-  connectivity_group_name      = var.connectivity_group_name
-  identity_group_name          = var.identity_group_name
-  management_group_name        = var.management_group_name
+# ============================================================================
+# AZURE LANDING ZONE MANAGEMENT GROUPS
+# ============================================================================
 
-  # Optional subscription IDs for management groups
+module "management_groups" {
+  source = "./modules/management_groups"
+
+  # Core configuration
+  resource_prefix            = var.resource_prefix
+  root_management_group_name = var.root_management_group_name
+
+  # Management group names
+  decommissioned_group_name = var.decommissioned_group_name
+  landing_zones_group_name  = var.landing_zones_group_name
+  platform_group_name       = var.platform_group_name
+  sandboxes_group_name      = var.sandboxes_group_name
+  prod_group_name           = var.prod_group_name
+  non_prod_group_name       = var.non_prod_group_name
+  connectivity_group_name   = var.connectivity_group_name
+  identity_group_name       = var.identity_group_name
+  management_group_name     = var.management_group_name
+
+  # Subscription assignments
   connectivity_subscription_id = var.connectivity_subscription_id
   identity_subscription_id     = var.identity_subscription_id
   management_subscription_id   = var.management_subscription_id
 }
 
-# Call the optional resources module
+# ============================================================================
+# CONNECTIVITY RESOURCES (OPTIONAL)
+# ============================================================================
+
+module "connectivity" {
+  count  = local.deploy_network ? 1 : 0
+  source = "./modules/connectivity"
+
+  # Basic configuration
+  connectivity_rg_name = local.connectivity_rg_name
+  location             = var.location
+  tags                 = local.common_tags
+
+  # Architecture selection
+  deploy_hub_spoke = local.deploy_hub_spoke
+  deploy_vwan      = local.deploy_vwan
+
+  # Hub & Spoke configuration
+  hub_vnet_name          = local.hub_vnet_name
+  hub_vnet_address_space = var.hub_vnet_address_space
+  hub_subnets            = var.hub_subnets
+
+  # Virtual WAN configuration  
+  virtual_wan_name             = local.virtual_wan_name
+  virtual_hub_name             = local.virtual_hub_name
+  virtual_hub_address_prefix   = var.virtual_hub_address_prefix
+  deploy_express_route_gateway = var.deploy_express_route_gateway
+  deploy_vpn_gateway           = var.deploy_vpn_gateway
+  express_route_gateway_name   = local.express_route_gateway_name
+  vpn_gateway_name             = local.vpn_gateway_name
+
+  # Optional features
+  deploy_azure_firewall = false # Can be enabled as needed
+  deploy_azure_bastion  = false # Can be enabled as needed
+}
+
+# ============================================================================
+# CORE SECURITY POLICIES (OPTIONAL)
+# ============================================================================
+
+module "core_policies" {
+  count  = var.deploy_core_policies ? 1 : 0
+  source = "./modules/core_policies"
+
+  # Policy configuration
+  deploy_core_policies    = var.deploy_core_policies
+  policy_enforcement_mode = var.policy_enforcement_mode
+
+  # Management group IDs (from management groups module)
+  root_management_group_id          = module.management_groups.root_management_group_id
+  platform_management_group_id      = module.management_groups.platform_group_id
+  landing_zones_management_group_id = module.management_groups.landing_zones_group_id
+  sandbox_management_group_id       = module.management_groups.sandboxes_group_id
+
+  # Policy parameters
+  allowed_locations        = [var.location] # Allow primary location by default
+  required_environment_tag = "ALZ"
+
+  # Policy initiative and exemptions
+  create_policy_initiative  = true
+  create_sandbox_exemptions = true
+  sandbox_exemption_expiry  = null # No expiry by default
+
+  depends_on = [module.management_groups]
+}
+
+# ============================================================================
+# OPTIONAL MANAGEMENT RESOURCES
+# ============================================================================
+
 module "optional_resources" {
-  source                         = "./modules/optional_resources"
+  source = "./modules/optional_resources"
+
+  # Deployment flags
   deploy_log_analytics_workspace = var.deploy_log_analytics_workspace
   deploy_automation_account      = var.deploy_automation_account
   deploy_data_collection_rules   = var.deploy_data_collection_rules
   deploy_managed_identity        = var.deploy_managed_identity
-  location                       = var.location
 
-  # Pass Log Analytics workspace names from locals
+  # Basic configuration
+  resource_prefix = var.resource_prefix
+  location        = var.location
+
+  # Log Analytics workspace names (from locals)
   log_analytics_workspace_prod_name    = local.log_analytics_workspace_prod_name
   log_analytics_workspace_nonprod_name = local.log_analytics_workspace_nonprod_name
-  resource_prefix                      = var.resource_prefix
 }
 
-# Calls the module for deploying a Virtual WAN with a Virtual Hub and ExpressRoute Gateway
-module "vwan_with_vhub" {
-  source                         = "Azure/avm-ptn-virtualwan/azurerm"
-  version                        = "0.5.0"
-  create_resource_group          = true
-  resource_group_name            = local.vwan_resource_group_name
-  location                       = var.location
-  virtual_wan_name               = var.virtual_wan_name
-  disable_vpn_encryption         = false
-  allow_branch_to_branch_traffic = true
-  type                           = "Standard"
-  virtual_wan_tags               = var.tags
+# ============================================================================
+# DEPLOYMENT COMPLETED
+# ============================================================================
 
-  virtual_hubs = {
-    (local.virtual_hub_key) = {
-      name           = local.virtual_hub_name
-      location       = var.location
-      resource_group = local.vwan_resource_group_name
-      address_prefix = var.virtual_hub_address_prefix
-      tags           = var.tags
-    }
-  }
-
-  expressroute_gateways = {
-    er-gateway = {
-      name            = local.express_route_gateway_name
-      virtual_hub_key = local.virtual_hub_key
-      scale_units     = 1
-    }
-  }
-
-  # Define empty er_circuit_connections if not needed
-  er_circuit_connections = {}
-}
-
-# Azure Policy Module for CIS 2.0 Compliance in Audit Mode
-module "azure_policy" {
-  source               = "./modules/azure_policy"
-  cis_policy_set_id    = "/providers/Microsoft.Authorization/policySetDefinitions/06f19060-9e68-4070-92ca-f15cc126059e"
-  management_group_id  = module.management_groups.root_management_group_id
-}
+# All Azure Landing Zone components have been deployed through the modules above:
+# - Management Groups: Complete ALZ hierarchy
+# - Connectivity: Hub & Spoke or Virtual WAN (optional)
+# - Core Policies: Essential security controls (optional)  
+# - Management Resources: Log Analytics and Automation (optional)

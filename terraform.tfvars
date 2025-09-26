@@ -1,51 +1,138 @@
-# terraform.tfvars
+# terraform.tfvars - Azure Landing Zone Configuration
 
-# Name of the root management group
-root_management_group_name = "ALZ Root"
+# ============================================================================
+# CORE ALZ CONFIGURATION
+# ============================================================================
+
+# Root management group name - this appears under the tenant root
+root_management_group_name = "Contoso ALZ"
 
 # Prefix for naming resources (used in management group names and resource names)
 resource_prefix = "contoso"
 
-# Location for resource deployments (Azure region)
-location = "westcentralus"
+# Organization name for consistent naming
+org_name = "contoso"
 
-# Optional subscription IDs for specific management groups
-# Replace these with actual subscription IDs or leave as null if not needed
-connectivity_subscription_id = ""
-identity_subscription_id     = ""
-management_subscription_id   = ""
+# Primary Azure region for resource deployments
+location = "westus3"
 
-# Custom names for the top-level and secondary management groups
+# ============================================================================
+# SUBSCRIPTION ASSIGNMENTS (OPTIONAL)
+# ============================================================================
+
+# Replace these with actual subscription IDs or leave empty/null if not needed
+connectivity_subscription_id = null
+identity_subscription_id     = null
+management_subscription_id   = null
+
+# ============================================================================
+# NETWORKING ARCHITECTURE CHOICE
+# ============================================================================
+
+# Choose your network architecture: 
+# - "hub_spoke" for traditional hub and spoke (recommended for most scenarios)
+# - "vwan" for Virtual WAN (recommended for multi-region, complex connectivity)
+# - "none" for no connectivity resources
+network_architecture = "hub_spoke"
+
+# Deploy connectivity resources (VNet/Virtual WAN)
+deploy_connectivity_resources = true
+
+# ============================================================================
+# HUB & SPOKE CONFIGURATION (when network_architecture = "hub_spoke")
+# ============================================================================
+
+# Hub virtual network address space
+hub_vnet_address_space = ["10.0.0.0/22"]
+
+# Hub subnets configuration
+hub_subnets = {
+  "snet-shared-services" = {
+    address_prefixes = ["10.0.0.0/24"]
+  }
+  "snet-management" = {
+    address_prefixes = ["10.0.1.0/24"]
+  }
+  "AzureBastionSubnet" = {
+    address_prefixes = ["10.0.2.0/26"]
+  }
+  "AzureFirewallSubnet" = {
+    address_prefixes = ["10.0.3.0/26"]
+  }
+}
+
+# ============================================================================
+# VIRTUAL WAN CONFIGURATION (when network_architecture = "vwan")
+# ============================================================================
+
+# Virtual WAN name (optional, will be auto-generated if not provided)
+virtual_wan_name = ""
+
+# Virtual hub address prefix
+virtual_hub_address_prefix = "10.0.0.0/24"
+
+# Deploy optional gateways in Virtual WAN hub
+deploy_express_route_gateway = false
+deploy_vpn_gateway           = false
+
+# ============================================================================
+# MANAGEMENT GROUP CUSTOMIZATION (OPTIONAL)
+# ============================================================================
+
+# Custom names for the management groups (optional)
 decommissioned_group_name = "Decommissioned"
 landing_zones_group_name  = "Landing Zones"
 platform_group_name       = "Platform"
-sandboxes_group_name      = "Sandbox"
+sandboxes_group_name      = "Sandboxes"
 
-# Custom names for management groups under Landing Zones
-prod_group_name     = "Prod"
-non_prod_group_name = "Non-Prod"
+# Landing Zones sub-groups
+prod_group_name     = "Production"
+non_prod_group_name = "Non-Production"
 
-# Custom names for management groups under Platform
+# Platform sub-groups
 connectivity_group_name = "Connectivity"
 identity_group_name     = "Identity"
 management_group_name   = "Management"
 
-# Organization name for consistent naming
-org_name = "contoso"
+# ============================================================================
+# POLICY CONFIGURATION
+# ============================================================================
 
-# Flags to deploy optional resources
+# Deploy core security and compliance policies
+deploy_core_policies = true
+
+# Policy enforcement mode:
+# - "DoNotEnforce" = Audit mode (recommended for initial deployment)
+# - "Default" = Enforce mode (recommended for production)
+policy_enforcement_mode = "DoNotEnforce"
+
+# ============================================================================
+# OPTIONAL MANAGEMENT RESOURCES
+# ============================================================================
+
+# Deploy Log Analytics Workspaces for centralized logging
 deploy_log_analytics_workspace = true
-deploy_automation_account      = true
-deploy_resource_group          = true
-deploy_data_collection_rules   = false
-deploy_managed_identity        = false
 
-# Virtual WAN and Hub Variables
-virtual_wan_name           = "contoso-vwan"
-virtual_hub_address_prefix = "10.0.0.0/24"
+# Deploy Azure Automation Account for management tasks
+deploy_automation_account = true
 
-# Tags for resources
+# Deploy Data Collection Rules for Azure Monitor
+deploy_data_collection_rules = false
+
+# Deploy User Assigned Managed Identity
+deploy_managed_identity = false
+
+# ============================================================================
+# RESOURCE TAGGING
+# ============================================================================
+
+# Default tags applied to all resources
 tags = {
-  environment = "production"
-  deployment  = "test"
+  Environment = "ALZ"
+  Project     = "Azure-Landing-Zone"
+  ManagedBy   = "Terraform"
+  Framework   = "Azure-Landing-Zones"
+  CostCenter  = "IT-Infrastructure"
+  Owner       = "platform-team@contoso.com"
+  CreatedDate = "2025-09-26"
 }
