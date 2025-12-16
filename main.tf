@@ -129,6 +129,32 @@ module "optional_resources" {
 }
 
 # ============================================================================
+# COMPUTE RESOURCES (VMs - OPTIONAL)
+# ============================================================================
+
+module "compute" {
+  source = "./modules/compute"
+
+  # Deployment flag
+  deploy_compute_resources = var.deploy_compute_resources
+
+  # Basic configuration
+  resource_prefix = var.resource_prefix
+  location        = var.location
+  tags             = local.common_tags
+
+  # VM configuration
+  vm_size            = var.vm_size
+  vm_os_type         = var.vm_os_type
+  admin_username     = var.admin_username
+  admin_password     = var.admin_password
+  ssh_public_key_path = var.ssh_public_key_path
+  assign_public_ip   = var.assign_public_ip
+  create_compute_vnet = var.create_compute_vnet
+  existing_subnet_id = var.existing_subnet_id
+}
+
+# ============================================================================
 # DEPLOYMENT COMPLETED
 # ============================================================================
 
@@ -137,3 +163,4 @@ module "optional_resources" {
 # - Connectivity: Hub & Spoke or Virtual WAN (optional)
 # - Core Policies: Essential security controls (optional)  
 # - Management Resources: Log Analytics and Automation (optional)
+# - Compute: Virtual Machine instances with security groups (optional)

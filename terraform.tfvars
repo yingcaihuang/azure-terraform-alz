@@ -123,6 +123,36 @@ deploy_data_collection_rules = false
 deploy_managed_identity = false
 
 # ============================================================================
+# COMPUTE RESOURCES (VIRTUAL MACHINE)
+# ============================================================================
+
+# Deploy VM instance (4 vCPU, 8GB RAM)
+deploy_compute_resources = true
+
+# Virtual machine size
+# Options: Standard_B2s (2vCPU, 4GB - economical), Standard_D2s_v3 (2vCPU, 8GB - general purpose)
+vm_size = "Standard_D2s_v3"
+
+# Operating system: "linux" (Ubuntu 22.04) or "windows" (Windows Server 2022)
+vm_os_type = "linux"
+
+# VM administrator username
+admin_username = "azureuser"
+
+# VM administrator password (only used for Windows VMs)
+# For production, consider using Azure Key Vault
+admin_password = ""
+
+# Path to SSH public key for Linux VM
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+
+# Assign a public IP address to the VM
+assign_public_ip = true
+
+# Create new VNet for compute resources (set to false to use existing subnet)
+create_compute_vnet = true
+
+# ============================================================================
 # RESOURCE TAGGING
 # ============================================================================
 

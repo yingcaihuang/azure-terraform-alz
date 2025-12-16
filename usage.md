@@ -24,7 +24,8 @@ azure-terraform-alz/
     ├── management_groups/  # 管理组层级
     ├── connectivity/       # 网络：Hub&Spoke 或 Virtual WAN
     ├── core_policies/      # 核心安全策略
-    └── optional_resources/ # 监控与运维资源
+    ├── optional_resources/ # 监控与运维资源
+    └── compute/            # 虚拟机与计算资源
 ```
 
 ## 部署前提
@@ -179,10 +180,115 @@ terraform init -backend-config=backend.conf -migrate-state
 - 与官方 ALZ Accelerator 差异？
   - 本项目聚焦核心能力与简化部署：更少策略、无需复杂 CI/CD、易于理解与扩展。
 
+## VM 实例部署（4核8G，开放 HTTP/HTTPS）
+
+### 启用 VM 部署
+在 `terraform.tfvars` 中配置：
+```hcl
+# 启用计算资源
+deploy_compute_resources = true
+
+# VM 规格（4vCPU, 8GB）
+vm_size = "Standard_D2s_v3"
+
+# 操作系统："linux"（Ubuntu 22.04）或 "windows"（Windows Server 2022）
+vm_os_type = "linux"
+
+# 分配公网 IP（便于远程访问）
+assign_public_ip = true
+
+# Linux 用户，SSH 公钥路径
+admin_username = "azureuser"
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+```
+
+### 开放的端口（安全组规则）
+自动配置的安全组包含以下规则：
+- **TCP 80（HTTP）**：所有源允许
+- **TCP 443（HTTPS）**：所有源允许
+- **TCP 22（SSH）**：所有源允许（Linux 管理）
+- **TCP 3389（RDP）**：所有源允许（Windows 管理）
+- **入站全拒绝**：其他协议/端口
+
+### Linux VM 部署示例
+```bash
+# 确保有 SSH 密钥对
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+
+# 编辑 terraform.tfvars
+deploy_compute_resources = true
+vm_os_type = "linux"
+
+# 部署
+terraform plan
+terraform apply
+
+# 获取连接信息
+terraform output vm_info
+# 输出示例：
+# {
+#   "os_type" = "linux"
+#   "private_ip" = "10.1.1.4"
+#   "public_ip" = "20.150.x.x"
+#   "username" = "azureuser"
+#   "ssh_command" = "ssh -i ~/.ssh/id_rsa azureuser@20.150.x.x"
+# }
+
+# 连接到 VM
+ssh -i ~/.ssh/id_rsa azureuser@20.150.x.x
+```
+
+### Windows VM 部署示例
+```bash
+# 编辑 terraform.tfvars
+deploy_compute_resources = true
+vm_os_type = "windows"
+admin_password = "YourStrongPassword123!"
+
+# 部署
+terraform plan
+terraform apply
+
+# 获取 RDP 连接信息
+terraform output vm_public_ip
+# 使用 RDP 客户端连接到该 IP，用户名 azureuser，密码为设置的 admin_password
+```
+
+### 验证部署
+```bash
+# 查看所有 VM 相关输出
+terraform output vm_info
+terraform output vm_public_ip
+terraform output security_group_info
+
+# 示例输出
+# vm_public_ip = "20.150.100.50"
+# security_group_info = {
+#   "id" = "/subscriptions/.../networkSecurityGroups/contoso-vm-nsg"
+#   "name" = "contoso-vm-nsg"
+#   "rules" = "HTTP (80), HTTPS (443), SSH (22), RDP (3389) allowed from all sources"
+# }
+```
+
+### 测试连接
+```bash
+# 测试 HTTP/HTTPS
+curl http://20.150.100.50
+curl https://20.150.100.50
+
+# 测试 SSH（Linux）
+ssh -i ~/.ssh/id_rsa azureuser@20.150.100.50
+
+# 测试 RDP（Windows）
+# 使用 Microsoft Remote Desktop 或第三方 RDP 客户端
+```
+
 ## 后续建议
 - 从审计模式开始，逐步启用强制。
 - 在网络连通性验证后再接入工作负载。
 - 建立成本标签与命名规范，方便成本分摊。
+- 定期检查 VM 安全组规则，根据实际需求调整开放端口。
+- 考虑使用 Azure 密钥库管理敏感信息（密码、SSH 密钥）。
 
 ---
 

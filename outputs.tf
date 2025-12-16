@@ -149,3 +149,42 @@ output "next_steps" {
     var.policy_enforcement_mode == "DoNotEnforce" ? "6. Consider enabling policy enforcement mode when ready" : "6. Monitor policy compliance and exemptions"
   ]
 }
+
+# ============================================================================
+# COMPUTE RESOURCE OUTPUTS (OPTIONAL)
+# ============================================================================
+
+output "vm_info" {
+  description = "Virtual machine deployment information"
+  value       = var.deploy_compute_resources ? module.compute.connection_info : null
+  sensitive   = true
+}
+
+output "vm_resource_group_name" {
+  description = "Name of the VM resource group"
+  value       = var.deploy_compute_resources ? module.compute.resource_group_name : null
+}
+
+output "vm_id" {
+  description = "ID of the deployed virtual machine"
+  value       = var.deploy_compute_resources ? module.compute.vm_id : null
+}
+
+output "vm_public_ip" {
+  description = "Public IP address of the VM"
+  value       = var.deploy_compute_resources ? module.compute.vm_public_ip : null
+}
+
+output "vm_private_ip" {
+  description = "Private IP address of the VM"
+  value       = var.deploy_compute_resources ? module.compute.vm_private_ip : null
+}
+
+output "security_group_info" {
+  description = "Security group information"
+  value = var.deploy_compute_resources ? {
+    name = module.compute.network_security_group_name
+    id   = module.compute.network_security_group_id
+    rules = "HTTP (80), HTTPS (443), SSH (22), RDP (3389) allowed from all sources"
+  } : null
+}

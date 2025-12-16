@@ -272,3 +272,68 @@ variable "org_name" {
     error_message = "Organization name must be 2-10 characters, lowercase letters and numbers only."
   }
 }
+
+# ============================================================================
+# COMPUTE RESOURCES (VM CONFIGURATION)
+# ============================================================================
+
+variable "deploy_compute_resources" {
+  description = "Whether to deploy compute resources (VM instance)"
+  type        = bool
+  default     = false
+}
+
+variable "vm_size" {
+  description = "Virtual machine size (4 vCPU, 8GB RAM options: Standard_B2s, Standard_D2s_v3)"
+  type        = string
+  default     = "Standard_D2s_v3"
+}
+
+variable "vm_os_type" {
+  description = "Operating system type for VM: 'linux' (Ubuntu) or 'windows' (Windows Server 2022)"
+  type        = string
+  default     = "linux"
+  
+  validation {
+    condition     = var.vm_os_type == "linux" || var.vm_os_type == "windows"
+    error_message = "vm_os_type must be either 'linux' or 'windows'."
+  }
+}
+
+variable "admin_username" {
+  description = "Administrator username for VM"
+  type        = string
+  default     = "azureuser"
+  sensitive   = true
+}
+
+variable "admin_password" {
+  description = "Administrator password for Windows VM (required when vm_os_type = windows)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "ssh_public_key_path" {
+  description = "Path to SSH public key file for Linux VM (e.g., ~/.ssh/id_rsa.pub)"
+  type        = string
+  default     = "~/.ssh/id_rsa.pub"
+}
+
+variable "assign_public_ip" {
+  description = "Whether to assign a public IP address to the VM"
+  type        = bool
+  default     = true
+}
+
+variable "create_compute_vnet" {
+  description = "Whether to create a new VNet for compute resources (set false to use existing subnet)"
+  type        = bool
+  default     = true
+}
+
+variable "existing_subnet_id" {
+  description = "Existing subnet ID to use for VM deployment (when create_compute_vnet = false)"
+  type        = string
+  default     = ""
+}
