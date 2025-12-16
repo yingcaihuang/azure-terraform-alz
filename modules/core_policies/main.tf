@@ -120,25 +120,25 @@ resource "azurerm_management_group_policy_assignment" "platform_core_policies" {
 
 # Assign workload-specific policies to Landing Zones management group
 resource "azurerm_management_group_policy_assignment" "landing_zones_core_policies" {
-  for_each = var.deploy_core_policies ? tomap({
+  for_each = var.deploy_core_policies ? toset([
     # Only apply specific policies that are relevant for workloads
-    require_storage_https   = local.core_policies.require_storage_https
-    require_sql_tde         = local.core_policies.require_sql_tde
-    require_vm_backup       = local.core_policies.require_vm_backup
-    deny_rdp_from_internet  = local.core_policies.deny_rdp_from_internet
-    deny_ssh_from_internet  = local.core_policies.deny_ssh_from_internet
-    require_environment_tag = local.core_policies.require_environment_tag
-  }) : tomap({})
+    "require_storage_https",
+    "require_sql_tde",
+    "require_vm_backup",
+    "deny_rdp_from_internet",
+    "deny_ssh_from_internet",
+    "require_environment_tag",
+  ]) : toset([])
 
   name                 = "lz-${each.key}"
-  display_name         = each.value.display_name
-  description          = each.value.description
-  policy_definition_id = each.value.policy_definition_id
+  display_name         = local.core_policies[each.key].display_name
+  description          = local.core_policies[each.key].description
+  policy_definition_id = local.core_policies[each.key].policy_definition_id
   management_group_id  = var.landing_zones_management_group_id
   enforce              = var.policy_enforcement_mode == "Default" ? true : false
 
   # Add parameters if they exist for this policy
-  parameters = jsonencode(lookup(each.value, "parameters", {}))
+  parameters = jsonencode(lookup(local.core_policies[each.key], "parameters", {}))
 }
 
 # ============================================================================
