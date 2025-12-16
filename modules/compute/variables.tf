@@ -32,7 +32,7 @@ variable "vm_os_type" {
   description = "Operating system type: 'linux' or 'windows'"
   type        = string
   default     = "linux"
-  
+
   validation {
     condition     = var.vm_os_type == "linux" || var.vm_os_type == "windows"
     error_message = "vm_os_type must be either 'linux' or 'windows'."
@@ -54,9 +54,15 @@ variable "admin_password" {
 }
 
 variable "ssh_public_key_path" {
-  description = "Path to SSH public key file (for Linux VM)"
+  description = "Path to SSH public key file (for Linux VM). Ignored if generate_ssh_key = true"
   type        = string
   default     = "~/.ssh/id_rsa.pub"
+}
+
+variable "generate_ssh_key" {
+  description = "Whether to generate SSH key pair via Terraform (private key will be in state file)"
+  type        = bool
+  default     = false
 }
 
 variable "assign_public_ip" {
@@ -73,6 +79,28 @@ variable "create_compute_vnet" {
 
 variable "existing_subnet_id" {
   description = "Existing subnet ID to use for VM (when create_compute_vnet = false)"
+  type        = string
+  default     = ""
+}
+
+# ============================================================================
+# AZURE MONITOR CONFIGURATION
+# ============================================================================
+
+variable "enable_azure_monitor" {
+  description = "Whether to enable Azure Monitor Agent and diagnostics on the VM"
+  type        = bool
+  default     = true
+}
+
+variable "log_analytics_workspace_id" {
+  description = "Log Analytics Workspace ID for VM diagnostics and metrics"
+  type        = string
+  default     = ""
+}
+
+variable "subscription_id" {
+  description = "Azure subscription ID (required for Monitor role assignments)"
   type        = string
   default     = ""
 }

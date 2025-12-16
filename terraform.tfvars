@@ -143,14 +143,26 @@ admin_username = "azureuser"
 # For production, consider using Azure Key Vault
 admin_password = ""
 
-# Path to SSH public key for Linux VM
+# Path to SSH public key for Linux VM (ignored if generate_ssh_key = true)
 ssh_public_key_path = "~/.ssh/id_rsa.pub"
+
+# Generate SSH key pair via Terraform instead of using local key file
+# Set to true to have Terraform generate a new SSH key (stored in state file)
+# Set to false (default) to use existing local SSH key at ssh_public_key_path
+generate_ssh_key = false
 
 # Assign a public IP address to the VM
 assign_public_ip = true
 
 # Create new VNet for compute resources (set to false to use existing subnet)
 create_compute_vnet = true
+
+# ============================================================================
+# AZURE MONITOR & LOGGING CONFIGURATION
+# ============================================================================
+
+# Enable Azure Monitor Agent on VMs for metrics collection
+enable_azure_monitor = true
 
 # ============================================================================
 # RESOURCE TAGGING

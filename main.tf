@@ -13,6 +13,12 @@ provider "azurerm" {
 }
 
 # ============================================================================
+# DATA SOURCES
+# ============================================================================
+
+data "azurerm_client_config" "current" {}
+
+# ============================================================================
 # AZURE LANDING ZONE MANAGEMENT GROUPS
 # ============================================================================
 
@@ -141,17 +147,44 @@ module "compute" {
   # Basic configuration
   resource_prefix = var.resource_prefix
   location        = var.location
-  tags             = local.common_tags
+  tags            = local.common_tags
 
   # VM configuration
-  vm_size            = var.vm_size
-  vm_os_type         = var.vm_os_type
-  admin_username     = var.admin_username
-  admin_password     = var.admin_password
+  vm_size             = var.vm_size
+  vm_os_type          = var.vm_os_type
+  admin_username      = var.admin_username
+  admin_password      = var.admin_password
   ssh_public_key_path = var.ssh_public_key_path
-  assign_public_ip   = var.assign_public_ip
+  generate_ssh_key    = var.generate_ssh_key
+  assign_public_ip    = var.assign_public_ip
   create_compute_vnet = var.create_compute_vnet
-  existing_subnet_id = var.existing_subnet_id
+  existing_subnet_id  = var.existing_subnet_id
+
+  # Azure Monitor configuration
+  enable_azure_monitor       = var.enable_azure_monitor
+  subscription_id            = data.azurerm_client_config.current.subscription_id
+  log_analytics_workspace_id = var.deploy_log_analytics_workspace ? module.optional_resources.log_analytics_workspace_prod_id : var.log_analytics_workspace_id
+}
+
+# ============================================================================
+# DIAGNOSTIC SETTINGS FOR VM MONITORING
+# ============================================================================
+
+# Send VM metrics to Log Analytics Workspace
+resource "azurerm_monitor_diagnostic_setting" "vm_diagnostics" {
+  count              = var.deploy_compute_resources && var.enable_azure_monitor && var.deploy_log_analytics_workspace ? 1 : 0
+  name               = "${var.resource_prefix}-vm-metrics"
+  target_resource_id = var.vm_os_type == "linux" ? module.compute.vm_id : module.compute.vm_id
+
+  log_analytics_workspace_id = module.optional_resources.log_analytics_workspace_prod_id
+
+  # Enable all platform metrics
+  metric {
+    category = "AllMetrics"
+    enabled  = true
+  }
+
+  depends_on = [module.compute, module.optional_resources]
 }
 
 # ============================================================================
@@ -163,4 +196,4 @@ module "compute" {
 # - Connectivity: Hub & Spoke or Virtual WAN (optional)
 # - Core Policies: Essential security controls (optional)  
 # - Management Resources: Log Analytics and Automation (optional)
-# - Compute: Virtual Machine instances with security groups (optional)
+# - Compute: Virtual Machine instances with security groups and Azure Monitor (optional)

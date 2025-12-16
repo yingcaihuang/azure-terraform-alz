@@ -6,7 +6,21 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.110"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
+}
+
+# ============================================================================
+# SSH KEY GENERATION (Optional - when generate_ssh_key = true)
+# ============================================================================
+
+resource "tls_private_key" "vm_key" {
+  count     = var.generate_ssh_key ? 1 : 0
+  algorithm = "RSA"
+  rsa_bits  = 4096
 }
 
 # ============================================================================
@@ -124,11 +138,11 @@ resource "azurerm_virtual_network" "compute_vnet" {
 }
 
 resource "azurerm_subnet" "compute_subnet" {
-  count              = var.deploy_compute_resources && var.create_compute_vnet ? 1 : 0
-  name               = "${var.resource_prefix}-compute-subnet"
-  resource_group_name        = azurerm_resource_group.compute[0].name
-  virtual_network_name       = azurerm_virtual_network.compute_vnet[0].name
-  address_prefixes           = ["10.1.1.0/24"]
+  count                = var.deploy_compute_resources && var.create_compute_vnet ? 1 : 0
+  name                 = "${var.resource_prefix}-compute-subnet"
+  resource_group_name  = azurerm_resource_group.compute[0].name
+  virtual_network_name = azurerm_virtual_network.compute_vnet[0].name
+  address_prefixes     = ["10.1.1.0/24"]
 }
 
 # ============================================================================
@@ -193,7 +207,16 @@ resource "azurerm_linux_virtual_machine" "vm" {
   # SSH key authentication
   admin_ssh_key {
     username   = var.admin_username
-    public_key = file(var.ssh_public_key_path)
+    public_key = var.generate_ssh_key ? tls_private_key.vm_key[0].public_key_openssh : file(var.ssh_public_key_path)
+  }
+
+  # Managed identity for Azure Monitor Agent
+  dynamic "identity" {
+    for_each = var.enable_azure_monitor ? [1] : []
+    content {
+      type         = "UserAssigned"
+      identity_ids = [azurerm_user_assigned_identity.vm_monitor_identity[0].id]
+    }
   }
 
   os_disk {
@@ -230,6 +253,15 @@ resource "azurerm_windows_virtual_machine" "vm_windows" {
   admin_username = var.admin_username
   admin_password = var.admin_password
 
+  # Managed identity for Azure Monitor Agent
+  dynamic "identity" {
+    for_each = var.enable_azure_monitor ? [1] : []
+    content {
+      type         = "UserAssigned"
+      identity_ids = [azurerm_user_assigned_identity.vm_monitor_identity[0].id]
+    }
+  }
+
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "Premium_LRS"
@@ -246,3 +278,48 @@ resource "azurerm_windows_virtual_machine" "vm_windows" {
     azurerm_network_interface.vm_nic[0].id,
   ]
 }
+
+# ============================================================================
+# AZURE MONITOR - DIAGNOSTIC SETTINGS & AGENT
+# ============================================================================
+
+# Enable Azure Monitor Agent on Linux VM
+resource "azurerm_virtual_machine_extension" "ama_agent" {
+  count                      = var.deploy_compute_resources && var.vm_os_type == "linux" && var.enable_azure_monitor ? 1 : 0
+  name                       = "AzureMonitorLinuxAgent"
+  virtual_machine_id         = azurerm_linux_virtual_machine.vm[0].id
+  publisher                  = "Microsoft.Azure.Monitor"
+  type                       = "AzureMonitorLinuxAgent"
+  type_handler_version       = "1.0"
+  auto_upgrade_minor_version = true
+}
+
+# Enable Azure Monitor Agent on Windows VM
+resource "azurerm_virtual_machine_extension" "ama_agent_windows" {
+  count                      = var.deploy_compute_resources && var.vm_os_type == "windows" && var.enable_azure_monitor ? 1 : 0
+  name                       = "AzureMonitorWindowsAgent"
+  virtual_machine_id         = azurerm_windows_virtual_machine.vm_windows[0].id
+  publisher                  = "Microsoft.Azure.Monitor"
+  type                       = "AzureMonitorWindowsAgent"
+  type_handler_version       = "1.0"
+  auto_upgrade_minor_version = true
+}
+
+# User-assigned managed identity for Azure Monitor Agent
+resource "azurerm_user_assigned_identity" "vm_monitor_identity" {
+  count               = var.deploy_compute_resources && var.enable_azure_monitor ? 1 : 0
+  resource_group_name = azurerm_resource_group.compute[0].name
+  location            = var.location
+  name                = "${var.resource_prefix}-vm-monitor-identity"
+  tags                = var.tags
+}
+
+# Role assignment - Monitor Metrics Publisher for managed identity
+resource "azurerm_role_assignment" "monitor_metrics_publisher" {
+  count                = var.deploy_compute_resources && var.enable_azure_monitor ? 1 : 0
+  scope                = "/subscriptions/${var.subscription_id}"
+  role_definition_name = "Monitoring Metrics Publisher"
+  principal_id         = azurerm_user_assigned_identity.vm_monitor_identity[0].principal_id
+}
+
+

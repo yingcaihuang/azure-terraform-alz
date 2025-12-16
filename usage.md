@@ -180,6 +180,67 @@ terraform init -backend-config=backend.conf -migrate-state
 - 与官方 ALZ Accelerator 差异？
   - 本项目聚焦核心能力与简化部署：更少策略、无需复杂 CI/CD、易于理解与扩展。
 
+## Azure Monitor 配置
+
+### 自动监控采集（推荐）
+VM 部署时默认启用 Azure Monitor Agent，自动采集：
+- CPU 使用率、内存、磁盘、网络等系统指标
+- 性能计数器（每 60 秒采集一次）
+- 事件日志（Windows）或系统日志（Linux）
+
+### 启用步骤
+在 `terraform.tfvars` 中配置：
+```hcl
+# 启用 Azure Monitor
+enable_azure_monitor = true
+
+# 确保 Log Analytics Workspace 已部署
+deploy_log_analytics_workspace = true
+```
+
+部署后，指标自动发送至 Log Analytics Workspace：
+```bash
+terraform output log_analytics_workspace_id
+# 输出：/subscriptions/xxx/resourcegroups/xxx/providers/microsoft.operationalinsights/workspaces/contoso-prod-westus3-law
+```
+
+### 查看监控数据
+1. **Azure Portal**：
+   - 搜索 → "Log Analytics Workspace" → 选择工作区
+   - 菜单 → "监视器" 或 "日志" 查看指标和日志
+
+2. **KQL（Kusto Query Language）查询示例**：
+```kusto
+# 查看 CPU 使用率
+Perf 
+| where ObjectName == "Processor" 
+| where CounterName == "% Processor Time"
+| summarize avg(CounterValue) by Computer, bin(TimeGenerated, 1m)
+
+# 查看内存使用情况
+Perf 
+| where ObjectName == "Memory" 
+| where CounterName == "Available MBytes"
+| summarize min(CounterValue) by Computer, bin(TimeGenerated, 1m)
+
+# 查看 VM 事件日志
+Event 
+| where Computer == "contoso-vm"
+| where EventLevelName == "Error"
+| project TimeGenerated, Source, EventID, RenderedDescription
+```
+
+3. **Azure Monitor Insights**：
+   - 打开 Log Analytics Workspace
+   - 点击 "Insights" 查看性能仪表板
+   - 可视化 CPU、内存、磁盘使用趋势
+
+### 配置告警（基于指标）
+在 Azure Portal 中为 VM 创建告警规则示例：
+- **条件**：平均 CPU 使用率 > 80%
+- **持续时间**：5 分钟内
+- **操作**：发送电子邮件通知或触发自动化
+
 ## VM 实例部署（4核8G，开放 HTTP/HTTPS）
 
 ### 启用 VM 部署

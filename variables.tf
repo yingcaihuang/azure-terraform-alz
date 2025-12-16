@@ -293,7 +293,7 @@ variable "vm_os_type" {
   description = "Operating system type for VM: 'linux' (Ubuntu) or 'windows' (Windows Server 2022)"
   type        = string
   default     = "linux"
-  
+
   validation {
     condition     = var.vm_os_type == "linux" || var.vm_os_type == "windows"
     error_message = "vm_os_type must be either 'linux' or 'windows'."
@@ -315,9 +315,15 @@ variable "admin_password" {
 }
 
 variable "ssh_public_key_path" {
-  description = "Path to SSH public key file for Linux VM (e.g., ~/.ssh/id_rsa.pub)"
+  description = "Path to SSH public key file for Linux VM (e.g., ~/.ssh/id_rsa.pub). Ignored when generate_ssh_key = true."
   type        = string
   default     = "~/.ssh/id_rsa.pub"
+}
+
+variable "generate_ssh_key" {
+  description = "Whether to generate SSH key pair via Terraform (private key will be in state file). If false, uses ssh_public_key_path. Recommended: false for production."
+  type        = bool
+  default     = false
 }
 
 variable "assign_public_ip" {
@@ -334,6 +340,22 @@ variable "create_compute_vnet" {
 
 variable "existing_subnet_id" {
   description = "Existing subnet ID to use for VM deployment (when create_compute_vnet = false)"
+  type        = string
+  default     = ""
+}
+
+# ============================================================================
+# AZURE MONITOR CONFIGURATION
+# ============================================================================
+
+variable "enable_azure_monitor" {
+  description = "Whether to enable Azure Monitor Agent on VMs for metrics collection"
+  type        = bool
+  default     = true
+}
+
+variable "log_analytics_workspace_id" {
+  description = "Custom Log Analytics Workspace ID (if not using the automatically created one)"
   type        = string
   default     = ""
 }
