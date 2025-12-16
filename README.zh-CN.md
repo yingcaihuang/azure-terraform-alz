@@ -31,7 +31,124 @@
 
 ## 部署内容概览
 - 核心：管理组层级、（可选）订阅分配
-- 可选：连接性（Hub & Spoke 或 Virtual WAN）、安全策略、管理资源、监控与日志
+- 可选：连接性（Hub & Spoke 或 Virtual WAN）、安全策略、管理资源、监控与日志、计算模块（可选）
+
+## 架构总览（中文）
+
+```mermaid
+graph TB
+  subgraph "Azure Tenant"
+    TenantRoot["🏢 租户根管理组"]
+
+    subgraph "ALZ 管理组"
+      ALZRoot["📁 组织 ALZ 根<br/>治理与策略"]
+
+      subgraph "平台服务"
+        Platform["🔧 平台"]
+        Connectivity["🌐 连接性<br/>Hub VNet 或 vWAN"]
+        Identity["👤 身份服务"]
+        Management["⚙️ 管理<br/>Log Analytics 与自动化"]
+        Monitor["📈 监控<br/>代理与 DCR"]
+      end
+
+      subgraph "落地区域"
+        LandingZones["🚀 落地区域"]
+        Production["🏭 生产环境"]
+        NonProduction["🧪 开发/测试环境"]
+        Compute["🖥️ 计算模块<br/>可选 VM 资源"]
+      end
+
+      Sandboxes["🏖️ 沙盒"]
+      Decommissioned["📦 退役资源"]
+    end
+
+    subgraph "可选基础设施"
+      subgraph "Hub & Spoke 网络"
+        HubVNet["🏢 Hub 虚拟网络<br/>10.0.0.0/22"]
+        SharedSvcs["📡 共享服务<br/>10.0.0.0/24"]
+        MgmtSvcs["⚙️ 管理子网<br/>10.0.1.0/24"]
+        BastionSub["🛡️ Bastion 子网<br/>10.0.2.0/26"]
+        FwSub["🔥 防火墙子网<br/>10.0.3.0/26"]
+      end
+
+      subgraph "Virtual WAN 方案"
+        vWAN["🌐 Virtual WAN"]
+        vHub["🔗 虚拟 Hub<br/>10.0.0.0/24"]
+        ERGateway["🔌 ExpressRoute 网关"]
+        VPNGateway["🔐 VPN 网关"]
+      end
+
+      subgraph "管理资源"
+        LogAnalytics["📈 Log Analytics 工作区<br/>生产与非生产"]
+        AutomationAcct["🤖 自动化账号"]
+        DataCollection["📊 数据采集规则（DCR）"]
+      end
+
+      subgraph "访问与密钥"
+        SSHKeys["🔑 SSH 密钥<br/>Terraform 或外部"]
+        TLSProv["🔒 TLS Provider<br/>密钥/证书工具"]
+      end
+    end
+  end
+
+  %% 关联关系
+  TenantRoot --> ALZRoot
+  ALZRoot --> Platform
+  ALZRoot --> LandingZones
+  ALZRoot --> Sandboxes
+  ALZRoot --> Decommissioned
+
+  Platform --> Connectivity
+  Platform --> Identity
+  Platform --> Management
+  Platform --> Monitor
+
+  LandingZones --> Production
+  LandingZones --> NonProduction
+  LandingZones --> Compute
+
+  %% 可选设施连接
+  Connectivity -.-> HubVNet
+  Connectivity -.-> vWAN
+  HubVNet --> SharedSvcs
+  HubVNet --> MgmtSvcs
+  HubVNet --> BastionSub
+  HubVNet --> FwSub
+  vWAN --> vHub
+  vHub -.-> ERGateway
+  vHub -.-> VPNGateway
+  Management -.-> LogAnalytics
+  Management -.-> AutomationAcct
+  Monitor -.-> DataCollection
+  Monitor --> LogAnalytics
+  Compute -.-> LogAnalytics
+  SSHKeys -.-> Compute
+  TLSProv -.-> SSHKeys
+  TLSProv -.-> Compute
+
+  %% 样式
+  classDef mgmtGroup fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+  classDef platform fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+  classDef workload fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+  classDef network fill:#fff3e0,stroke:#e65100,stroke-width:2px
+  classDef optional fill:#f5f5f5,stroke:#616161,stroke-width:1px,stroke-dasharray: 5 5
+
+  class ALZRoot,TenantRoot mgmtGroup
+  class Platform,Connectivity,Identity,Management,Monitor platform
+  class LandingZones,Production,NonProduction,Compute,Sandboxes,Decommissioned workload
+  class HubVNet,vWAN,SharedSvcs,MgmtSvcs,BastionSub,FwSub,vHub network
+    class LogAnalytics,AutomationAcct,DataCollection,ERGateway,VPNGateway,SSHKeys optional
+    class TLSProv optional
+```
+
+### TLS Provider 位置与作用
+
+- 位置：位于架构的“访问与密钥”分组，与 `SSHKeys` 并列。
+- 作用：提供安全的密钥/证书工具能力，用于可选的计算模块与 SSH 密钥工作流。
+- 交互关系：
+  - 协助 `SSHKeys` 在生成或处理密钥材料时的工具支持
+  - 支持 `Compute` 模块在需要 TLS 密钥/证书操作的场景
+```
 
 ## 快速开始
 ### 1. 先决条件

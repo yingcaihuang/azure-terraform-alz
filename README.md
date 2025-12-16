@@ -52,12 +52,14 @@ graph TB
                 Connectivity["🌐 Connectivity<br/>Hub VNet or vWAN"]
                 Identity["👤 Identity<br/>Azure AD Services"]
                 Management["⚙️ Management<br/>Log Analytics & Automation"]
+        Monitor["📈 Monitor<br/>Agent & DCR"]
             end
             
             subgraph "Workload Landing Zones"
                 LandingZones["🚀 Landing Zones"]
                 Production["🏭 Production<br/>Prod Workloads"]
                 NonProduction["🧪 Non-Production<br/>Dev/Test Workloads"]
+        Compute["🖥️ Compute Module<br/>Optional VM Resources"]
             end
             
             Sandboxes["🏖️ Sandboxes<br/>Learning & Innovation"]
@@ -83,8 +85,13 @@ graph TB
             subgraph "Management Resources"
                 LogAnalytics["📈 Log Analytics Workspaces<br/>Production & Non-Production"]
                 AutomationAcct["🤖 Azure Automation Account"]
-                DataCollection["📊 Data Collection Rules"]
+        DataCollection["📊 Data Collection Rules (DCR)"]
             end
+            
+      subgraph "Access & Keys"
+        SSHKeys["🔑 SSH Keys<br/>Terraform or External"]
+        TLSProv["🔒 TLS Provider<br/>Key/Cert Utilities"]
+      end
         end
     end
 
@@ -97,10 +104,12 @@ graph TB
     
     Platform --> Connectivity
     Platform --> Identity  
-    Platform --> Management
+  Platform --> Management
+  Platform --> Monitor
     
     LandingZones --> Production
     LandingZones --> NonProduction
+  LandingZones --> Compute
     
     %% Optional Infrastructure Connections
     Connectivity -.-> HubVNet
@@ -112,9 +121,14 @@ graph TB
     vWAN --> vHub
     vHub -.-> ERGateway
     vHub -.-> VPNGateway
-    Management -.-> LogAnalytics
+  Management -.-> LogAnalytics
     Management -.-> AutomationAcct
-    Management -.-> DataCollection
+  Monitor -.-> DataCollection
+  Monitor --> LogAnalytics
+  Compute -.-> LogAnalytics
+  SSHKeys -.-> Compute
+  TLSProv -.-> SSHKeys
+  TLSProv -.-> Compute
 
     %% Styling
     classDef mgmtGroup fill:#e1f5fe,stroke:#01579b,stroke-width:2px
@@ -124,11 +138,20 @@ graph TB
     classDef optional fill:#f5f5f5,stroke:#616161,stroke-width:1px,stroke-dasharray: 5 5
     
     class ALZRoot,TenantRoot mgmtGroup
-    class Platform,Connectivity,Identity,Management platform
-    class LandingZones,Production,NonProduction,Sandboxes,Decommissioned workload
+  class Platform,Connectivity,Identity,Management,Monitor platform
+  class LandingZones,Production,NonProduction,Compute,Sandboxes,Decommissioned workload
     class HubVNet,vWAN,SharedSvcs,MgmtSvcs,BastionSub,FwSub,vHub network
-    class LogAnalytics,AutomationAcct,DataCollection,ERGateway,VPNGateway optional
+  class LogAnalytics,AutomationAcct,DataCollection,ERGateway,VPNGateway,SSHKeys optional
+    class TLSProv optional
 ```
+
+### TLS Provider Placement & Purpose
+
+- Location: Under "Access & Keys" alongside `SSHKeys` in the architecture.
+- Purpose: Provides secure key and certificate utilities used by optional compute scenarios and SSH key workflows.
+- Interactions:
+  - Assists `SSHKeys` when generating or handling key material
+  - Supports `Compute` module for scenarios needing TLS key/cert operations
 
 ## 🏗️ **What Gets Deployed**
 
